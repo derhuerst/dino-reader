@@ -4,7 +4,9 @@
 	"version": "0.1.0",
 	"main": "index.js",
 	"files": [
-		"index.js"
+		"index.js",
+		"read-csv.js",
+		"merge-stations.js"
 	],
 	"keywords": [
 		"dino",
@@ -21,6 +23,12 @@
 		"node": ">=6"
 	},
 	"dependencies": {
+		"@turf/centroid": "^6.0.2",
+		"csv-parser": "^1.12.1",
+		"iconv-lite": "^0.4.21",
+		"lodash": "^4.17.5",
+		"pump": "^3.0.0",
+		"strip-bom-stream": "^3.0.0"
 	},
 	"devDependencies": {
 		"tap-min": "^1.2.2",
