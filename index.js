@@ -22,9 +22,31 @@ const parseCalendar = (days, from, until) => {
 	return res
 }
 
+const reduce = (acc, reducer, stream, cb) => {
+	const write = (row, _, cb) => {
+		reducer(acc, row, cb)
+	}
+
+	const out = new Writable({objectMode: true, write})
+	stream.pipe(out)
+
+	let done = false
+	out
+	.once('error', (err) => {
+		out.destroy(err)
+		if (done) return
+		done = true
+		cb(err)
+	})
+	.once('finish', () => {
+		if (done) return
+		done = true
+		cb(null, acc)
+	})
+}
+
 const readRestrictions = (readFile, done) => {
-	const restrictions = Object.create(null)
-	const writeRestriction = (row, _, cb) => {
+	const writeRestriction = (restrictions, row, cb) => {
 		const id = row.RESTRICTION.trim()
 		restrictions[id] = {
 			id,
@@ -38,19 +60,16 @@ const readRestrictions = (readFile, done) => {
 		cb()
 	}
 
-	const out = new Writable({objectMode: true, write: writeRestriction})
-	readFile('service_restriction.din')
-	.pipe(out)
-	.once('error', (err) => {
-		out.destroy(err)
-		done(err)
-	})
-	.once('finish', () => done(null, restrictions))
+	reduce(
+		Object.create(null),
+		writeRestriction,
+		readFile('service_restriction.din'),
+		done
+	)
 }
 
 const readRoutes = (readFile, done) => {
-	const routes = Object.create(null)
-	const writeRoute = (row, _, cb) => {
+	const writeRoute = (routes, row, cb) => {
 		const id = row.LINE_NR.trim() + '-' + row.STR_LINE_VAR.trim()
 		routes[id] = {
 			id,
@@ -61,20 +80,16 @@ const readRoutes = (readFile, done) => {
 		cb()
 	}
 
-	const out = new Writable({
-		objectMode: true, write: writeRoute
-	})
-	readFile('rec_lin_ber.din')
-	.pipe(out)
-	.once('error', (err) => {
-		out.detroy(err)
-		done(err)
-	})
-	.once('finish', () => done(null, routes))
+	reduce(
+		Object.create(null),
+		writeRoute,
+		readFile('rec_lin_ber.din'),
+		done
+	)
 }
 
 const readRouteStops = (routes, readFile, done) => {
-	const writeRouteStop = (row, _, cb) => {
+	const writeRouteStop = (routes, row, cb) => {
 		const id = row.LINE_NR.trim() + '-' + row.STR_LINE_VAR.trim()
 		const route = routes[id]
 		if (!route) return cb(new Error('unknown id ' + id))
@@ -87,16 +102,12 @@ const readRouteStops = (routes, readFile, done) => {
 		cb()
 	}
 
-	const out = new Writable({
-		objectMode: true, write: writeRouteStop
-	})
-	readFile('lid_course.din')
-	.pipe(out)
-	.once('error', (err) => {
-		out.destroy(err)
-		done(err)
-	})
-	.once('finish', () => done(null, routes))
+	reduce(
+		routes,
+		writeRouteStop,
+		readFile('lid_course.din'),
+		done
+	)
 }
 
 const createReader = (readFile, done) => {
