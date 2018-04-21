@@ -18,7 +18,7 @@ const parseCalendar = (days, from, until) => {
 	const startMonth = d.month
 	while (d < until) {
 		const i = (d.month - startMonth) * 32 + (32 - d.day)
-		if (days.get(i)) res.push(d / 1000 | 0)
+		if (days.get(i)) res.push([d / 1000 | 0, d.weekday])
 		d = d.plus({days: 1})
 	}
 
@@ -204,12 +204,11 @@ const readTrips = (restrictions, travelTimes, weekdays, readFile, done) => {
 
 		const onWeekday = weekdays[row.DAY_ATTRIBUTE_NR.trim()] || []
 		const dayOffset = parseInt(row.DEPARTURE_TIME)
-		for (let day of restriction.days) {
-			const weekday = DateTime.fromMillis(1000 + day * 1000, {zone: TIMEZONE}).weekday
+		for (let [t, weekday] of restriction.days) {
 			// The year-based bitmasks from restrictions and the week-based
 			// bitmask from weekdays *both* need to be set to 1/true.
 			if (onWeekday[weekday]) {
-				travelTime.starts.push(day + dayOffset)
+				travelTime.starts.push(t + dayOffset)
 			}
 		}
 
@@ -233,8 +232,9 @@ const createReader = (readFile, done) => {
 		cb => readWeekdays(readFile, cb)
 	], (err, [restrictions, travelTimes, routes, weekdays]) => {
 		if (err) return done(err)
-		readTrips(restrictions, travelTimes, readFile, (err, travelTimes) => {
+		readTrips(restrictions, travelTimes, weekdays, readFile, (err, travelTimes) => {
 			if (err) return done(err)
+
 			readRouteStops(routes, readFile, (err, routes) => {
 				if (err) return done(err)
 
