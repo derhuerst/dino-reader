@@ -3,6 +3,7 @@
 const {DateTime} = require('luxon')
 const Bitfield = require('bitfield')
 const {Writable} = require('stream')
+const parallel = require('async/parallel')
 
 const mergeStations = require('./merge-stations')
 
@@ -70,9 +71,11 @@ const readRestrictions = (readFile, done) => {
 
 const readRoutes = (readFile, done) => {
 	const writeRoute = (routes, row, cb) => {
-		const id = row.LINE_NR.trim() + '-' + row.STR_LINE_VAR.trim()
+		const lineId = row.LINE_NR.trim()
+		const id = lineId + '-' + row.STR_LINE_VAR.trim()
 		routes[id] = {
 			id,
+			lineId,
 			name: row.LINE_NAME.trim(),
 			// todo: map MOT_NO/TMOT_NO to FPTF modes
 			stops: [] // filled later
@@ -93,10 +96,15 @@ const readRouteStops = (routes, readFile, done) => {
 		const id = row.LINE_NR.trim() + '-' + row.STR_LINE_VAR.trim()
 		const route = routes[id]
 		if (!route) return cb(new Error('unknown id ' + id))
+		// todo: sort by row.LINE_CONSEC_NR?
+		const lastStop = route.stops[route.stops.length - 1]
 		route.stops.push({
 			i: parseInt(row.LINE_CONSEC_NR),
 			id: row.STOP_NR.trim(),
-			distanceTravelled: parseInt(row.LENGTH)
+			distanceTravelled: (
+				parseInt(row.LENGTH) +
+				(lastStop && lastStop.distanceTravelled || 0)
+			)
 			// todo: STOP_TYPE_NR, STOPPING_POINT_NR, STOPPING_POINT_TYPE
 		})
 		cb()
@@ -184,10 +192,13 @@ const readTrips = (restrictions, travelTimes, readFile, done) => {
 }
 
 const createReader = (readFile, done) => {
-	readRestrictions(readFile, (err, restrictions) => {
+	parallel([
+		cb => readRestrictions(readFile, cb),
+		cb => readTravelTimes(readFile, cb),
+		cb => readRoutes(readFile, cb)
+	], (err, [restrictions, travelTimes, routes]) => {
 		if (err) return done(err)
-
-		readRoutes(readFile, (err, routes) => {
+		readTrips(restrictions, travelTimes, readFile, (err, travelTimes) => {
 			if (err) return done(err)
 			readRouteStops(routes, readFile, (err, routes) => {
 				if (err) return done(err)
