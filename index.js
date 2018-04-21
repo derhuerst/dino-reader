@@ -224,34 +224,43 @@ const readTrips = (restrictions, travelTimes, weekdays, readFile, done) => {
 	)
 }
 
-const createReader = (readFile, done) => {
-	parallel([
-		cb => readRestrictions(readFile, cb),
-		cb => readTravelTimes(readFile, cb),
-		cb => readRoutes(readFile, cb),
-		cb => readWeekdays(readFile, cb)
-	], (err, [restrictions, travelTimes, routes, weekdays]) => {
-		if (err) return done(err)
-		readTrips(restrictions, travelTimes, weekdays, readFile, (err, travelTimes) => {
-			if (err) return done(err)
+const createReader = (readFile) => {
+	const readSchedules = (cb) => {
+		parallel([
+			cb => readRestrictions(readFile, cb),
+			cb => readTravelTimes(readFile, cb),
+			cb => readRoutes(readFile, cb),
+			cb => readWeekdays(readFile, cb)
+		], (err, [restrictions, travelTimes, routes, weekdays]) => {
+			if (err) return cb(err)
+			readTrips(restrictions, travelTimes, weekdays, readFile, (err, travelTimes) => {
+				if (err) return cb(err)
 
-			readRouteStops(routes, readFile, (err, routes) => {
-				if (err) return done(err)
+				readRouteStops(routes, readFile, (err, routes) => {
+					if (err) return cb(err)
 
-				for (let travelTime of Object.values(travelTimes)) {
-					const route = routes[travelTime.route]
-					if (route) travelTime.route = route
-				}
-				done(null, travelTimes)
+					for (let travelTime of Object.values(travelTimes)) {
+						const route = routes[travelTime.route]
+						if (route) travelTime.route = route
+					}
+					cb(null, travelTimes)
+				})
 			})
 		})
-	})
+	}
 
-	// mergeStations(
-	// 	readFile('rec_stop.din'),
-	// 	readFile('rec_stopping_points.din'),
-	// 	done
-	// )
+	const readMergedStations = (cb) => {
+		mergeStations(
+			readFile('rec_stop.din'),
+			readFile('rec_stopping_points.din'),
+			cb
+		)
+	}
+
+	return {
+		readSchedules,
+		readMergedStations
+	}
 }
 
 module.exports = createReader
