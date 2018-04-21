@@ -7,16 +7,18 @@ const parallel = require('async/parallel')
 
 const mergeStations = require('./merge-stations')
 
+const TIMEZONE = 'Europe/Berlin'
+
 const parseCalendar = (days, from, until) => {
 	days = new Bitfield(Buffer.from(days, 'hex'))
 	const res = []
 
-	until = DateTime.fromISO(until)
-	let d = DateTime.fromISO(from)
+	until = DateTime.fromISO(until, {zone: TIMEZONE})
+	let d = DateTime.fromISO(from, {zone: TIMEZONE})
 	const startMonth = d.month
 	while (d < until) {
 		const i = (d.month - startMonth) * 32 + (32 - d.day)
-		res.push(d / 1000 | 0)
+		if (days.get(i)) res.push(d / 1000 | 0)
 		d = d.plus({days: 1})
 	}
 
@@ -29,21 +31,21 @@ const reduce = (acc, reducer, stream, cb) => {
 	}
 
 	const out = new Writable({objectMode: true, write})
-	stream.pipe(out)
 
 	let done = false
 	out
 	.once('error', (err) => {
-		out.destroy(err)
-		if (done) return
+		if (done) return null
 		done = true
 		cb(err)
+		out.destroy(err)
 	})
-	.once('finish', () => {
-		if (done) return
+	.once('finish', (err) => {
+		if (err || done) return null
 		done = true
 		cb(null, acc)
 	})
+	stream.pipe(out)
 }
 
 const readRestrictions = (readFile, done) => {
@@ -118,6 +120,31 @@ const readRouteStops = (routes, readFile, done) => {
 	)
 }
 
+const readWeekdays = (readFile, done) => {
+	const writeWeekday = (weekdays, row, cb) => {
+		// todo: take row.DAY from calendar_of_the_company.din into account
+		const bitmask = parseInt(row.DAY_ATTRIBUTE_NR)
+		const weekday = []
+		weekday[1] = !!(bitmask & 64),
+		weekday[2] = !!(bitmask & 32),
+		weekday[3] = !!(bitmask & 16),
+		weekday[4] = !!(bitmask & 8),
+		weekday[5] = !!(bitmask & 4),
+		weekday[6] = !!(bitmask & 2),
+		weekday[7] = !!(bitmask & 1)
+
+		weekdays[row.DAY_ATTRIBUTE_NR.trim()] = weekday
+		cb()
+	}
+
+	reduce(
+		Object.create(null),
+		writeWeekday,
+		readFile('day_type_2_day_attribute.din'),
+		done
+	)
+}
+
 const readTravelTimes = (readFile, done) => {
 	const time = Symbol('time')
 	const writeTravelTimes = (travelTimes, row, cb) => {
@@ -149,7 +176,7 @@ const readTravelTimes = (readFile, done) => {
 	)
 }
 
-const readTrips = (restrictions, travelTimes, readFile, done) => {
+const readTrips = (restrictions, travelTimes, weekdays, readFile, done) => {
 	const writeTrips = (travelTimes, row, cb) => {
 		const travelTimeId = [
 			row.LINE_NR.trim(),
@@ -175,11 +202,18 @@ const readTrips = (restrictions, travelTimes, readFile, done) => {
 			return cb(new Error('unknown restriction id ' + restrictionId))
 		}
 
+		const onWeekday = weekdays[row.DAY_ATTRIBUTE_NR.trim()] || []
 		const dayOffset = parseInt(row.DEPARTURE_TIME)
 		for (let day of restriction.days) {
-			travelTime.starts.push(day + dayOffset)
+			const weekday = DateTime.fromMillis(1000 + day * 1000, {zone: TIMEZONE}).weekday
+			// The year-based bitmasks from restrictions and the week-based
+			// bitmask from weekdays *both* need to be set to 1/true.
+			if (onWeekday[weekday]) {
+				travelTime.starts.push(day + dayOffset)
+			}
 		}
-		// todo: VEH_TYPE_NR, DAY_ATTRIBUTE_NR, ROUND_TRIP_ID, TRAIN_NR
+
+		// todo: VEH_TYPE_NR, ROUND_TRIP_ID, TRAIN_NR
 		cb()
 	}
 
@@ -195,15 +229,20 @@ const createReader = (readFile, done) => {
 	parallel([
 		cb => readRestrictions(readFile, cb),
 		cb => readTravelTimes(readFile, cb),
-		cb => readRoutes(readFile, cb)
-	], (err, [restrictions, travelTimes, routes]) => {
+		cb => readRoutes(readFile, cb),
+		cb => readWeekdays(readFile, cb)
+	], (err, [restrictions, travelTimes, routes, weekdays]) => {
 		if (err) return done(err)
 		readTrips(restrictions, travelTimes, readFile, (err, travelTimes) => {
 			if (err) return done(err)
 			readRouteStops(routes, readFile, (err, routes) => {
 				if (err) return done(err)
 
-				// todo
+				for (let travelTime of Object.values(travelTimes)) {
+					const route = routes[travelTime.route]
+					if (route) travelTime.route = route
+				}
+				done(null, travelTimes)
 			})
 		})
 	})

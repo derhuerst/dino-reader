@@ -33,9 +33,6 @@ const mergeStations = (stationsStream, stopsStream, done) => {
 				// todo: confirm that these are WGS84
 				latitude: null,
 				longitude: null
-				// todo
-				// latitude: row.STOP_POS_Y / 1000000,
-				// longitude: row.STOP_POS_X / 1000000
 			},
 			ifoptId: row.IFOPT.trim(),
 			gemeinde: row.OCC.trim(),
