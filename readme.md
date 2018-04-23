@@ -23,6 +23,18 @@ todo
 ```
 
 
+## Why?
+
+The following notes are from the [*Digital Mobility Hack BW*](https://vm.baden-wuerttemberg.de/de/verkehrspolitik/zukunftskonzepte/digitale-mobilitaet/digital-mobility-hack-bw/) presentation:
+
+> - [VRR](https://en.wikipedia.org/wiki/Verkehrsverbund_Rhein-Ruhr) is the largest public transport association in Europe
+> - yet, it publishes open data only in the DINO format, not as [GTFS](http://gtfs.org/).
+> - there are a lot of use cases for GTFS: 3rd-party apps, routing engines, etc.
+> - existing DINO parsers/converters: unfinished or outdated
+> - DINO looks and feels like SQL databases
+> - this project tries to solve more edge cases than other projects
+
+
 ## Contributing
 
 If you have a question or have difficulties using `dino-reader`, please double-check your code and setup first. If you think you have found a bug or want to propose a feature, refer to [the issues page](https://github.com/derhuerst/dino-reader/issues).
