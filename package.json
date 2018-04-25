@@ -34,11 +34,14 @@
 		"strip-bom-stream": "^3.0.0"
 	},
 	"devDependencies": {
+		"got": "^8.3.0",
+		"lodash.maxby": "^4.6.0",
 		"tap-min": "^1.2.2",
 		"tape": "^4.8.0"
 	},
 	"scripts": {
+		"build": "./build/download.sh",
 		"test": "env NODE_ENV=dev node test.js | tap-min",
-		"prepublishOnly": "npm test"
+		"prepublishOnly": "npm run build && npm test"
 	}
 }
