@@ -1,6 +1,6 @@
 # dino-reader
 
-**Read [DINO](https://www.openvrr.de/dataset/e22502a5-d7b2-43c9-be93-ccbb8b35ca83/resource/78b00892-cc82-4870-8360-7ff1a2bfe2cc/download/beschreibung_austauschformat_dino_v1.7_02.0_1.pdf) data dumps.**
+**Read [DINO](https://dodp.ckan.io/dataset/34631ac0-765b-4e29-a699-ec8484520350/resource/ef53ef7b-761d-41c2-87a8-71fbc97bfb31/download/beschreibung_austauschformat_dino_v1.7_02.0_1.pdf) data dumps.**
 
 [![npm version](https://img.shields.io/npm/v/dino-reader.svg)](https://www.npmjs.com/package/dino-reader)
 [![build status](https://api.travis-ci.org/derhuerst/dino-reader.svg?branch=master)](https://travis-ci.org/derhuerst/dino-reader)
