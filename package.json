@@ -27,7 +27,7 @@
 		"async": "^2.6.0",
 		"bitfield": "^2.0.0",
 		"csv-parser": "^1.12.1",
-		"iconv-lite": "^0.4.21",
+		"iconv-lite": "^0.6.3",
 		"lodash": "^4.17.5",
 		"luxon": "^1.0.0",
 		"pump": "^3.0.0",
